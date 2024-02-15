@@ -31,7 +31,7 @@ def write_tiles(blocks,size,f):
 
 game_name = "marble_madness_2"
 text_bitmap = " .=#/:_%()@&*+:;!12345678abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-nb_tiles = 0x800
+nb_tiles = 0x1000
 tiles = []
 
 for tile_name_l,tile_name_h in zip(["pf0l.3p",
@@ -47,16 +47,41 @@ for tile_name_l,tile_name_h in zip(["pf0l.3p",
 
     with open(tiles_file_l,"rb") as fl,open(tiles_file_h,"rb") as fh:
         for _ in range(nb_tiles):
-            # each 8x8 tile is 32 bytes each
-            # each half-byte is a pixel 0-F being the index of the selected CLUT
+            # each 8x8 tile is 64 bytes each, using chunky pixel palette-indexed
+            # value (simple is great!!)
             block = []
             for i in range(32):
                 block.append(ord(fl.read(1)))
                 block.append(ord(fh.read(1)))
             current = bytearray(block)
 
-
             tiles.append(current)
+
+sprites = []
+nb_sprites = 0x400
+
+for sprite_name_h,sprite_name_l in zip(["mo0l.7p",
+"mo1l.10p"],
+[
+"mo0h.12p",
+"mo1h.14p",
+]):
+    tiles_file_h = os.path.join(this_dir,os.pardir,"mame",sprite_name_h) # not included (copyright reasons LOL!)
+    tiles_file_l = os.path.join(this_dir,os.pardir,"mame",sprite_name_l) # not included (copyright reasons LOL!)
+
+    with open(tiles_file_l,"rb") as fl,open(tiles_file_h,"rb") as fh:
+        for _ in range(nb_sprites):
+            # each 8x8 tile is 64 bytes each, using chunky pixel palette-indexed
+            # value (simple is great!!)
+            block = []
+            for i in range(128):
+                block.append(ord(fl.read(1)))
+                block.append(ord(fh.read(1)))
+            current = bytearray(block)
+
+            sprites.append(current)
+
+nb_tiles = len(tiles)
 
 with open(os.path.join(this_dir,f"{game_name}_gfx.h"),"w") as f:
         inc_protect = f"__{game_name.upper()}_GFX_H__"
@@ -65,6 +90,7 @@ with open(os.path.join(this_dir,f"{game_name}_gfx.h"),"w") as f:
 
 
 #define NUM_TILES {nb_tiles}
+#define NUM_SPRITES {nb_sprites}
 
 #endif //  {inc_protect}
 """
@@ -78,5 +104,11 @@ with open(os.path.join(this_dir,f"{game_name}_gfx.c"),"w") as f:
     f.write(f"uint8_t tile[NUM_TILES][{sz[0]*sz[1]}] =\n{{")
 
     write_tiles(tiles,sz,f)
+
+    f.write("};\n")
+    sz = (16,16)
+    f.write(f"uint8_t sprite[NUM_SPRITES][{sz[0]*sz[1]}] =\n{{")
+
+    write_tiles(sprites,sz,f)
 
     f.write("};\n")
